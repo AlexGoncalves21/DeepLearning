@@ -46,8 +46,10 @@ class Perceptron(LinearModel):
         y_i (scalar): the gold label for that example
         other arguments are ignored
         """
-        raise NotImplementedError # Q1.1 (a)
-
+        y_hat = np.argmax(np.dot(self.W, x_i.T))
+        if y_hat != y_i:
+            self.W[y_i] += x_i
+            self.W[y_hat] -= x_i
 
 class LogisticRegression(LinearModel):
     def update_weight(self, x_i, y_i, learning_rate=0.001, l2_penalty=0.0, **kwargs):
@@ -56,7 +58,19 @@ class LogisticRegression(LinearModel):
         y_i: the gold label for that example
         learning_rate (float): keep it at the default value for your plots
         """
-        raise NotImplementedError # Q1.2 (a,b)
+
+        delta_W = np.zeros_like(self.W) # n_classes x n_features
+        softmax_out = np.exp(np.dot(self.W, x_i.T)) / np.sum(np.exp(np.dot(self.W, x_i.T)))
+         
+        for j in range(self.W.shape[0]):  # n_classes
+            if j == y_i:  
+                delta_W[j] = (softmax_out[j] - 1) * x_i
+            else:  
+                delta_W[j] = softmax_out[j] * x_i
+
+        delta_W += 2 * l2_penalty * self.W
+
+        self.W -= learning_rate * delta_W
 
 
 class MLP(object):
