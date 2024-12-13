@@ -72,16 +72,43 @@ class LogisticRegression(LinearModel):
 
         self.W -= learning_rate * delta_W
 
+    def compute_l2_norm(W):
+        return np.sqrt(np.sum(W ** 2))
+
 
 class MLP(object):
     def __init__(self, n_classes, n_features, hidden_size):
         # Initialize an MLP with a single hidden layer.
-        raise NotImplementedError # Q1.3 (a)
+        self.n_classes = n_classes
+        self.n_features = n_features
+        self.hidden_size = hidden_size
+        self.learning_rate = 0.001
+
+        # Initialize weights and biases
+        self.W1 = np.random.normal(0.1, 0.1, (hidden_size, n_features))  # Input to hidden
+        self.b1 = np.zeros((hidden_size,))  # Bias for hidden layer
+        self.W2 = np.random.normal(0.1, 0.1, (n_classes, hidden_size))  # Hidden to output
+        self.b2 = np.zeros((n_classes,))  # Bias for output layer
 
     def predict(self, X):
         # Compute the forward pass of the network. At prediction time, there is
         # no need to save the values of hidden nodes.
-        raise NotImplementedError # Q1.3 (a)
+        z1 = np.dot(self.W1, X) + self.b1
+        h1 = self.relu(z1)
+
+        # Output layer
+        z2 = np.dot(self.W2, h1) + self.b2
+        y_hat = self.softmax(z2)
+
+        return y_hat
+
+    def relu(self, x):
+        return np.maximum(0, x)
+
+    def softmax(self, x):
+        exp_x = np.exp(x - np.max(x))
+        return exp_x / np.sum(exp_x)
+
 
     def evaluate(self, X, y):
         """

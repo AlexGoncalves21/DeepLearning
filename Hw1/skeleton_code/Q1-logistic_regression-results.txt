@@ -1,2 +1,2 @@
-Final test acc: 0.45966666666666667
-Training time: 1 minutes and 55 seconds
+Final test acc: 0.49966666666666665
+Training time: 2 minutes and 6 seconds
