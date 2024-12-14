@@ -27,8 +27,7 @@ class LogisticRegression(nn.Module):
         https://pytorch.org/docs/stable/nn.html
         """
         super().__init__()
-        # In a pytorch module, the declarations of layers needs to come after
-        # the super __init__ line, otherwise the magic doesn't work.
+        self.linear = nn.Linear(n_features, n_classes)  # Wx + b
 
     def forward(self, x, **kwargs):
         """
@@ -44,7 +43,17 @@ class LogisticRegression(nn.Module):
         forward pass -- this is enough for it to figure out how to do the
         backward pass.
         """
-        raise NotImplementedError
+        logits = self.linear(x) 
+        return logits
+    """
+    def train_batch(self, model, optimizer, criterion, X_batch, y_batch):
+        optimizer.zero_grad()  # Zero gradients
+        y = self.forward(X_batch)  # Forward pass
+        loss = self.criterion(y, y_batch)  # Compute loss
+        loss.backward()  # Backward pass
+        optimizer.step()  # Update weights
+        return loss.item()
+    """
 
 
 class FeedforwardNetwork(nn.Module):
@@ -64,8 +73,26 @@ class FeedforwardNetwork(nn.Module):
         includes modules for several activation functions and dropout as well.
         """
         super().__init__()
-        # Implement me!
-        raise NotImplementedError
+        activation_map = {
+            "relu": nn.ReLU(),
+            "tanh": nn.Tanh(),
+            "sigmoid": nn.Sigmoid(),
+        }
+        if activation_type.lower() not in activation_map:
+            raise ValueError(f"Unsupported activation type: {activation_type}")
+        self.activation = activation_map[activation_type.lower()]
+
+        # Define layers: Input -> Hidden Layers -> Output
+        self.layers = nn.ModuleList()
+        input_dim = n_features
+        for _ in range(layers):  # Add hidden layers
+            self.layers.append(nn.Linear(input_dim, hidden_size))
+            self.layers.append(self.activation)
+            self.layers.append(nn.Dropout(dropout))
+            input_dim = hidden_size
+
+        # Output layer
+        self.output_layer = nn.Linear(hidden_size, n_classes)
 
     def forward(self, x, **kwargs):
         """
@@ -75,7 +102,10 @@ class FeedforwardNetwork(nn.Module):
         the output logits from x. This will include using various hidden
         layers, pointwise nonlinear functions, and dropout.
         """
-        raise NotImplementedError
+        for layer in self.layers:
+            x = layer(x)  # Pass through each layer
+        logits = self.output_layer(x)  # Final layer
+        return logits
 
 
 def train_batch(X, y, model, optimizer, criterion, **kwargs):
@@ -96,7 +126,13 @@ def train_batch(X, y, model, optimizer, criterion, **kwargs):
     This function should return the loss (tip: call loss.item()) to get the
     loss as a numerical value that is not part of the computation graph.
     """
-    raise NotImplementedError
+    optimizer.zero_grad()  # Zero gradients
+    probs = model(X)  # Forward pass
+    loss = criterion(probs, y)  # Compute loss
+    loss.backward()  # Backward pass
+    optimizer.step()  # Update weights
+    return loss.item()
+
 
 
 def predict(model, X):
