@@ -93,21 +93,49 @@ class MLP(object):
     def predict(self, X):
         # Compute the forward pass of the network. At prediction time, there is
         # no need to save the values of hidden nodes.
-        z1 = np.dot(self.W1, X) + self.b1
+        z1 = np.dot(self.W1, X.T) + self.b1[:, np.newaxis] 
         h1 = self.relu(z1)
 
         # Output layer
-        z2 = np.dot(self.W2, h1) + self.b2
+        z2 = np.dot(self.W2, h1) + self.b2[:, np.newaxis] 
         y_hat = self.softmax(z2)
 
-        return y_hat
+        return z1, h1, z2, y_hat.T
 
     def relu(self, x):
         return np.maximum(0, x)
 
     def softmax(self, x):
-        exp_x = np.exp(x - np.max(x))
-        return exp_x / np.sum(exp_x)
+        exp_x = np.exp(x - np.max(x, axis=0, keepdims=True))
+        return exp_x / (np.sum(exp_x, axis=0, keepdims=True))
+
+    
+    def relu_derivative(self, x):
+        return (x > 0).astype(float)
+    
+    def compute_loss(self, y_hat, y):
+        return -np.log(y_hat[np.arange(y_hat.shape[0]),y] + 1e-08)
+    
+    def backward(self, x, y, z1, h1, z2, y_hat):
+
+        # Gradients for output layer
+        dz2 = y_hat.copy()
+        dz2[np.arange(dz2.shape[0]),y] -= 1 
+        dz2 = dz2.T
+        dW2 = np.dot(dz2, h1.T) 
+        db2 = dz2.copy()
+
+        # Gradients for hidden layer
+        dh1 = np.dot(self.W2.T, dz2)
+        dz1 = dh1 * self.relu_derivative(z1)
+        dW1 = np.dot(dz1, x) 
+        db1 = dz1.copy()
+
+        # Update weights and biases using SGD
+        self.W2 -= self.learning_rate * dW2
+        self.b2 -= self.learning_rate * np.sum(db2, axis=1)
+        self.W1 -= self.learning_rate * dW1
+        self.b1 -= self.learning_rate * np.sum(db1, axis=1)
 
 
     def evaluate(self, X, y):
@@ -116,16 +144,15 @@ class MLP(object):
         y (n_examples): gold labels
         """
         # Identical to LinearModel.evaluate()
-        y_hat = self.predict(X)
-        n_correct = (y == y_hat).sum()
+        _, _, _, y_hat = self.predict(X)
+        n_correct = (y == np.argmax(y_hat, axis = 1).T).sum()
         n_possible = y.shape[0]
         return n_correct / n_possible
 
     def train_epoch(self, X, y, learning_rate=0.001, **kwargs):
-        """
-        Dont forget to return the loss of the epoch.
-        """
-        raise NotImplementedError # Q1.3 (a)
+        z1, h1, z2, y_hat = self.predict(X)
+        self.backward(X, y, z1, h1, z2, y_hat)
+        return np.average(self.compute_loss(y_hat, y))
 
 
 def plot(epochs, train_accs, val_accs, filename=None):
