@@ -1,2 +1,0 @@
-Final test acc: 0.175
-Training time: 0 minutes and 10 seconds
