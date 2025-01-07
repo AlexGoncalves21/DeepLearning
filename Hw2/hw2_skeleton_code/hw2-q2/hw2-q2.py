@@ -32,7 +32,7 @@ class ConvBlock(nn.Module):
         self.conv = nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, 
                               stride=1, padding=padding, bias=True)
         
-        # BatchNorm2d (use nn.Identity() to skip if not requested)
+        # Q2.2
         self.bn = nn.BatchNorm2d(out_channels) if use_batchnorm else nn.Identity()
 
         # Activation
@@ -57,16 +57,16 @@ class CNN(nn.Module):
     def __init__(self, 
                  dropout_prob=0.1, 
                  maxpool=True, 
-                 use_batchnorm=True):
-        """
-        use_batchnorm: bool, if True we insert BatchNorm2d in conv blocks
-        and BatchNorm1d in MLP layers. If False, all BN layers are replaced
-        by nn.Identity().
-        """
+                 #use_batchnorm=False):   #Q2.1
+                 use_batchnorm=True): #Q2.2
+                 
+        
+        
         super(CNN, self).__init__()
 
         # Channel dims for ConvBlocks
         channels = [3, 32, 64, 128]
+        
         # FC layers dims
         fc1_out_dim = 1024
         fc2_out_dim = 512
@@ -92,7 +92,8 @@ class CNN(nn.Module):
         # MLP layers
         # After global_avg_pool, the feature size is just "channels[3]"
         self.fc1 = nn.Linear(channels[3], fc1_out_dim, bias=True)
-        # BatchNorm1d for the MLP (use nn.Identity if not using BN)
+        
+        # BatchNorm1d for the MLP (use nn.Identity if not using BN) Q2.2
         self.bn1 = nn.BatchNorm1d(fc1_out_dim) if use_batchnorm else nn.Identity()
 
         self.fc2 = nn.Linear(fc1_out_dim, fc2_out_dim, bias=True)
@@ -218,8 +219,11 @@ def main():
     train_dataloader = DataLoader(dataset, batch_size=opt.batch_size, shuffle=True)
     dev_X, dev_y = dataset.dev_X.to(opt.device), dataset.dev_y.to(opt.device)
 
+    
+
     # Hyperparameters
-    learning_rates =  [0.01]   #[0.1, 0.01, 0.001]
+    #learning_rates =  [0.1, 0.01, 0.001]  #Q2.1
+    #learning_rates =  [0.01] #Q2.2
     best_val_acc = 0
     best_lr = None
 
@@ -231,6 +235,9 @@ def main():
         
         # Initialize the model
         model = CNN(opt.dropout).to(opt.device)
+
+         # Print the number of trainable parameters
+        print("Number of trainable parameters:", get_number_trainable_params(model))
         
         # SGD optimizer
         optimizer = torch.optim.SGD(model.parameters(), lr=lr)
