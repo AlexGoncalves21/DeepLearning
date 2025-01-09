@@ -74,17 +74,20 @@ class CNN(nn.Module):
 
         # Convolutional backbone
         self.conv1 = ConvBlock(channels[0], channels[1], kernel_size=3,
-                               use_batchnorm=use_batchnorm,
-                               maxpool=maxpool,
-                               dropout=dropout_prob)
+                               #use_batchnorm=use_batchnorm,
+                               maxpool=maxpool
+                               #dropout=dropout_prob
+                               )
         self.conv2 = ConvBlock(channels[1], channels[2], kernel_size=3,
-                               use_batchnorm=use_batchnorm,
-                               maxpool=maxpool,
-                               dropout=dropout_prob)
+                               #use_batchnorm=use_batchnorm,
+                               maxpool=maxpool
+                               #dropout=dropout_prob
+                               )
         self.conv3 = ConvBlock(channels[2], channels[3], kernel_size=3,
-                               use_batchnorm=use_batchnorm,
                                maxpool=maxpool,
-                               dropout=dropout_prob)
+                               use_batchnorm=use_batchnorm,
+                               dropout=dropout_prob
+                               )
 
         # Instead of flattening [batch, c, H, W], do global average pooling down to [batch, c, 1, 1]
         self.global_avg_pool = nn.AdaptiveAvgPool2d((1, 1))
@@ -223,7 +226,7 @@ def main():
 
     # Hyperparameters
     #learning_rates =  [0.1, 0.01, 0.001]  #Q2.1
-    #learning_rates =  [0.01] #Q2.2
+    learning_rates =  [0.01] #Q2.2
     best_val_acc = 0
     best_lr = None
 
