@@ -97,7 +97,7 @@ class CNN(nn.Module):
         # Convolution blocks
         x = self.conv1(x)  
         x = self.conv2(x) 
-        x = self.conv3(x) e
+        x = self.conv3(x) 
 
         # Global average pooling 
         x = self.global_avg_pool(x)

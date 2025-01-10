@@ -216,24 +216,24 @@ def greedy_next_token(logits):
 
 def nucleus_sampling(logits, p=0.8):
    
-    # Step 1: Convert logits to probabilities
+    # Probabilities
     probabilities = torch.softmax(logits, dim=-1)
 
-    # Step 2: Sort probabilities in descending order
+    #Probabilities in descending order
     sorted_probs, sorted_indices = torch.sort(probabilities, descending=True)
 
-    # Step 3: Compute cumulative probabilities
+    #Compute cumulative probabilities
     cumulative_probs = torch.cumsum(sorted_probs, dim=-1)
 
-    # Step 4: Identify top-p vocabulary (tokens with cumulative prob <= p)
+    #Top-p vocabulary 
     mask = cumulative_probs <= p
     mask |= (cumulative_probs == cumulative_probs.min())
 
-    # Step 5: Extract top-p probabilities and renormalize
+    # Top-p probabilities
     top_p_probs = sorted_probs[mask]
-    top_p_probs /= top_p_probs.sum()  # Renormalize probabilities to sum to 1
+    top_p_probs /= top_p_probs.sum()  # Renormalize
 
-    # Step 6: Sample a token from the top-p distribution
+    #Sample a token from the top-p distribution
     sampled_index = torch.multinomial(top_p_probs, num_samples=1)
     next_token = sorted_indices[mask][sampled_index]
 
