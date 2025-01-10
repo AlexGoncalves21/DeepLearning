@@ -18,7 +18,7 @@ class ConvBlock(nn.Module):
             self,
             in_channels,
             out_channels,
-            #se_batchnorm=False,   #Q2.1
+            #use_batchnorm=False,   #Q2.1
             use_batchnorm=True, #Q2.2
             maxpool=True,
             dropout=0.1,
@@ -67,6 +67,8 @@ class CNN(nn.Module):
         
         super(CNN, self).__init__()
 
+        self.use_batchnorm = use_batchnorm
+
         # Dims for ConvBlocks
         channels = [3, 32, 64, 128]
         
@@ -83,8 +85,10 @@ class CNN(nn.Module):
         # Global average pooling
         self.global_avg_pool = nn.AdaptiveAvgPool2d((1, 1))
 
+        conv_output_dim = 128 if use_batchnorm else 128 * 6 * 6  # 128 or 4608
+
         # MLP layers
-        self.fc1 = nn.Linear(channels[3], fc1_out_dim)
+        self.fc1 = nn.Linear(conv_output_dim, fc1_out_dim)
         self.fc2 = nn.Linear(fc1_out_dim, fc2_out_dim)
         self.fc3 = nn.Linear(fc2_out_dim, num_classes)
         self.dropout = nn.Dropout(dropout_prob)
@@ -99,10 +103,12 @@ class CNN(nn.Module):
         x = self.conv2(x) 
         x = self.conv3(x) 
 
-        # Global average pooling 
-        x = self.global_avg_pool(x)
+        # Global average pooling for 2.2
+        if self.use_batchnorm:
+            x = self.global_avg_pool(x)
 
         x = x.view(x.size(0), -1)
+
 
         # MLP
         x = self.fc1(x)               # Affine transformation to 1024 features
@@ -201,8 +207,8 @@ def main():
     
 
     # Hyperparameters
-   #learning_rates =  [0.1, 0.01, 0.001]  #Q2.1
-    learning_rates =  [0.1] #Q2.2
+    #learning_rates =  [0.1, 0.01, 0.001]  #Q2.1
+    learning_rates =  [0.01] #Q2.2
     best_val_acc = 0
     best_lr = None
 
