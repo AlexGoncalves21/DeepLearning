@@ -18,124 +18,100 @@ class ConvBlock(nn.Module):
             self,
             in_channels,
             out_channels,
-            kernel_size,
-            use_batchnorm=True,
-            padding=None,
+            #se_batchnorm=False,   #Q2.1
+            use_batchnorm=True, #Q2.2
             maxpool=True,
-            dropout=0.0
+            dropout=0.1,
+            bias=True
         ):
-        super().__init__()
-        if padding is None:
-            padding = kernel_size // 2  # same spatial size by default
 
-        # Convolution
-        self.conv = nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, 
-                              stride=1, padding=padding, bias=True)
+        super().__init__()
         
-        # Q2.2
+        # Convolution
+        self.conv = nn.Conv2d(
+            in_channels, 
+            out_channels, 
+            kernel_size=3,  # 3x3 kernel
+            stride=1,       # stride 1
+            padding=1,      # padding 1
+            bias=bias
+        )
+        
+        # Batch Normalization
         self.bn = nn.BatchNorm2d(out_channels) if use_batchnorm else nn.Identity()
 
         # Activation
         self.activation = nn.ReLU()
 
-        # Optional pooling and dropout
-        self.maxpool = nn.MaxPool2d(kernel_size=2, stride=2) if maxpool else None
-        self.dropout = nn.Dropout2d(dropout) if dropout > 0 else None
+        # Pooling and dropout
+        self.maxpool = nn.MaxPool2d(kernel_size=2, stride=2) if maxpool else nn.Identity()
+        self.dropout = nn.Dropout2d(dropout) 
 
     def forward(self, x):
         x = self.conv(x)
         x = self.bn(x)               
         x = self.activation(x)
-        if self.maxpool:
-            x = self.maxpool(x)
-        if self.dropout:
-            x = self.dropout(x)
+        x = self.maxpool(x)
+        x = self.dropout(x)
         return x
-
-
+    
 class CNN(nn.Module):
     def __init__(self, 
                  dropout_prob=0.1, 
                  maxpool=True, 
-                 #use_batchnorm=False):   #Q2.1
-                 use_batchnorm=True): #Q2.2
+                 #use_batchnorm=False,   #Q2.1
+                 use_batchnorm=True, #Q2.2
+                 bias=True):
                  
         
         
         super(CNN, self).__init__()
 
-        # Channel dims for ConvBlocks
+        # Dims for ConvBlocks
         channels = [3, 32, 64, 128]
         
-        # FC layers dims
+        # FC dims
         fc1_out_dim = 1024
         fc2_out_dim = 512
         num_classes = 6
 
-        # Convolutional backbone
-        self.conv1 = ConvBlock(channels[0], channels[1], kernel_size=3,
-                               #use_batchnorm=use_batchnorm,
-                               maxpool=maxpool
-                               #dropout=dropout_prob
-                               )
-        self.conv2 = ConvBlock(channels[1], channels[2], kernel_size=3,
-                               #use_batchnorm=use_batchnorm,
-                               maxpool=maxpool
-                               #dropout=dropout_prob
-                               )
-        self.conv3 = ConvBlock(channels[2], channels[3], kernel_size=3,
-                               maxpool=maxpool,
-                               use_batchnorm=use_batchnorm,
-                               dropout=dropout_prob
-                               )
+        # Convolutional blocks
+        self.conv1 = ConvBlock(channels[0], channels[1], use_batchnorm, maxpool, dropout_prob, bias)
+        self.conv2 = ConvBlock(channels[1], channels[2], use_batchnorm, maxpool, dropout_prob, bias)
+        self.conv3 = ConvBlock(channels[2], channels[3], use_batchnorm, maxpool, dropout_prob, bias)
 
-        # Instead of flattening [batch, c, H, W], do global average pooling down to [batch, c, 1, 1]
+        # Global average pooling
         self.global_avg_pool = nn.AdaptiveAvgPool2d((1, 1))
 
         # MLP layers
-        # After global_avg_pool, the feature size is just "channels[3]"
-        self.fc1 = nn.Linear(channels[3], fc1_out_dim, bias=True)
-        
-        # BatchNorm1d for the MLP (use nn.Identity if not using BN) Q2.2
-        self.bn1 = nn.BatchNorm1d(fc1_out_dim) if use_batchnorm else nn.Identity()
-
-        self.fc2 = nn.Linear(fc1_out_dim, fc2_out_dim, bias=True)
-        self.bn2 = nn.BatchNorm1d(fc2_out_dim) if use_batchnorm else nn.Identity()
-
-        self.fc3 = nn.Linear(fc2_out_dim, num_classes, bias=True)
-
-        # Shared activation & dropout
-        self.activation = nn.ReLU()
+        self.fc1 = nn.Linear(channels[3], fc1_out_dim)
+        self.fc2 = nn.Linear(fc1_out_dim, fc2_out_dim)
+        self.fc3 = nn.Linear(fc2_out_dim, num_classes)
         self.dropout = nn.Dropout(dropout_prob)
+        self.bn = nn.BatchNorm1d(fc1_out_dim) if use_batchnorm else nn.Identity()
+    
 
     def forward(self, x):
-        # x shape: [batch_size, 3, 48, 48]
-        if x.dim() == 2 and x.size(1) == 3 * 48 * 48:
-            x = x.view(x.size(0), 3, 48, 48)
+        x = x.reshape(x.shape[0], 3, 48, -1)
         
-        # Pass through convolution blocks
-        x = self.conv1(x)  # [batch, 32, 24, 24] if maxpool=True
-        x = self.conv2(x)  # [batch, 64, 12, 12] if maxpool=True
-        x = self.conv3(x)  # [batch, 128, 6, 6] if maxpool=True
+        # Convolution blocks
+        x = self.conv1(x)  
+        x = self.conv2(x) 
+        x = self.conv3(x) e
 
-        # Global average pooling to [batch, 128, 1, 1]
+        # Global average pooling 
         x = self.global_avg_pool(x)
 
-        # Flatten to [batch, 128]
         x = x.view(x.size(0), -1)
 
-        # MLP part
-        x = self.fc1(x)
-        x = self.bn1(x)             # BN in MLP
-        x = self.activation(x)
-        x = self.dropout(x)
-
-        x = self.fc2(x)
-        x = self.bn2(x)             # BN in MLP
-        x = self.activation(x)
-        x = self.dropout(x)
-
-        x = self.fc3(x)
+        # MLP
+        x = self.fc1(x)               # Affine transformation to 1024 features
+        x = F.relu(x)                 # ReLU activation
+        x = self.bn(x)                # Batch normalization
+        x = self.dropout(x)           # Dropout
+        x = self.fc2(x)               # Affine transformation to 512 features
+        x = F.relu(x)                 # ReLU activation
+        x = self.fc3(x)               # Affine transformation to num_classes
 
         return F.log_softmax(x, dim=1)
 
@@ -225,8 +201,8 @@ def main():
     
 
     # Hyperparameters
-    #learning_rates =  [0.1, 0.01, 0.001]  #Q2.1
-    learning_rates =  [0.01] #Q2.2
+   #learning_rates =  [0.1, 0.01, 0.001]  #Q2.1
+    learning_rates =  [0.1] #Q2.2
     best_val_acc = 0
     best_lr = None
 

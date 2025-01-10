@@ -215,16 +215,7 @@ def greedy_next_token(logits):
 
 
 def nucleus_sampling(logits, p=0.8):
-    """
-    Perform nucleus (top-p) sampling to select the next token.
-    
-    Args:
-        logits: 1D tensor of unnormalized scores (vocab_size,)
-        p: Cumulative probability threshold (scalar)
-
-    Returns:
-        next_token: Index of the next predicted token (1,)
-    """
+   
     # Step 1: Convert logits to probabilities
     probabilities = torch.softmax(logits, dim=-1)
 
@@ -236,7 +227,7 @@ def nucleus_sampling(logits, p=0.8):
 
     # Step 4: Identify top-p vocabulary (tokens with cumulative prob <= p)
     mask = cumulative_probs <= p
-    mask[cumulative_probs.argmax()] = True  # Ensure at least one token is included
+    mask |= (cumulative_probs == cumulative_probs.min())
 
     # Step 5: Extract top-p probabilities and renormalize
     top_p_probs = sorted_probs[mask]
