@@ -20,36 +20,19 @@ class BahdanauAttention(nn.Module):
 
     def __init__(self, hidden_size):
         super(BahdanauAttention, self).__init__()
-        self.Wh = nn.Linear(hidden_size, hidden_size, bias=False)  # Encoder hidden state projection
-        self.Ws = nn.Linear(hidden_size, hidden_size, bias=False)  # Decoder hidden state projection
-        self.v = nn.Linear(hidden_size, 1, bias=False)
+        
+        raise NotImplementedError("Add your implementation.")
 
     def forward(self, query, encoder_outputs, src_lengths):
         """
-        query:          (batch_size, max_tgt_len, hidden_size) - decoder hidden states
-        encoder_outputs:(batch_size, max_src_len, hidden_size) - encoder hidden states
-        src_lengths:    (batch_size) - lengths of source sequences
+        query:          (batch_size, max_tgt_len, hidden_size)
+        encoder_outputs:(batch_size, max_src_len, hidden_size)
+        src_lengths:    (batch_size)
         Returns:
             attn_out:   (batch_size, max_tgt_len, hidden_size) - attended vector
         """
-        # Expand query and encoder_outputs to shape compatibility
-        query_proj = self.Ws(query).unsqueeze(2)  # (batch_size, max_tgt_len, 1, hidden_size)
-        encoder_proj = self.Wh(encoder_outputs).unsqueeze(1)  # (batch_size, 1, max_src_len, hidden_size)
-        
-        # Compute alignment scores
-        alignment_scores = self.v(torch.tanh(query_proj + encoder_proj)).squeeze(-1)  # (batch_size, max_tgt_len, max_src_len)
 
-        # Create mask for valid source lengths
-        mask = self.sequence_mask(src_lengths).unsqueeze(1)  # (batch_size, 1, max_src_len)
-        alignment_scores = alignment_scores.masked_fill(~mask, float('-inf'))  # Mask padding positions
-
-        # Compute attention weights
-        attn_weights = torch.softmax(alignment_scores, dim=-1)  # (batch_size, max_tgt_len, max_src_len)
-
-        # Compute context vectors as weighted sum of encoder outputs
-        context = torch.bmm(attn_weights, encoder_outputs)  # (batch_size, max_tgt_len, hidden_size)
-
-        return context
+        raise NotImplementedError("Add your implementation.")
 
     def sequence_mask(self, lengths):
         """
@@ -156,10 +139,6 @@ class Decoder(nn.Module):
 
         self.attn = attn
 
-        if self.attn is not None:
-            self.attn_proj = nn.Linear(self.hidden_size * 2, self.hidden_size)
-
-
     def forward(
         self,
         tgt,
@@ -195,43 +174,23 @@ class Decoder(nn.Module):
         #############################################
         
         # Convert target token indices to embeddings
-       # Convert target token indices to embeddings
-        embedded = self.dropout(self.embedding(tgt))  # (batch_size, max_tgt_len, embedding_dim)
+        embedded = self.dropout(self.embedding(tgt))  # Shape: (batch_size, max_tgt_len, embedding_dim)
+        
+        # Pass through LSTM
+        output, dec_state = self.lstm(embedded, dec_state)  # Shape: (batch_size, max_tgt_len, hidden_size)
+        
+        # Optionally, apply attention if it's enabled
+        if self.attn is not None:
+            output = self.attn(output, encoder_outputs, src_lengths)  # Shape: (batch_size, max_tgt_len, hidden_size)
+        
+        # Remove the first entry from the outputs (ignore <SOS>)
+        if output.shape[1] > 1:  # Ensure there's more than one time step
+            output = output[:, :-1, :]  # Remove the <SOS> token's output
+        else:
+            output = output  # No slicing if only <SOS> is present
 
-        # Initialize a list to collect outputs at each time step
-        outputs = []
-
-        # Process each time step in the target sequence
-        for t in range(embedded.size(1)):
-            # Get the embedding for the current time step
-            input_t = embedded[:, t, :].unsqueeze(1)  # (batch_size, 1, embedding_dim)
-
-            # Pass through LSTM for the current step
-            lstm_out, dec_state = self.lstm(input_t, dec_state)  # (batch_size, 1, hidden_size)
-
-            if self.attn is not None:
-                # Apply attention mechanism
-                context = self.attn(lstm_out, encoder_outputs, src_lengths)  # (batch_size, 1, hidden_size)
-                # Combine LSTM output and attention context
-                lstm_out = torch.cat((context, lstm_out), dim=-1)  # (batch_size, 1, 2*hidden_size)
                 
-                # Dynamically add attn_proj if it doesn't exist
-                if not hasattr(self, "attn_proj"):
-                    self.attn_proj = nn.Linear(lstm_out.size(-1), self.hidden_size).to(lstm_out.device)
-                
-                lstm_out = torch.tanh(self.attn_proj(lstm_out))  # Project back to hidden_size
-
-            outputs.append(lstm_out)
-
-        # Concatenate all time step outputs
-        outputs = torch.cat(outputs, dim=1)  # (batch_size, max_tgt_len, hidden_size)
-
-        # Remove the first timestep output corresponding to <SOS>
-        if outputs.shape[1] > 1:  # Ensure there's more than one timestep
-            outputs = outputs[:, :-1, :]  # Remove the <SOS> token's output
-
-        return outputs, dec_state
-
+        return output, dec_state
 
         #############################################
         # END OF YOUR CODE

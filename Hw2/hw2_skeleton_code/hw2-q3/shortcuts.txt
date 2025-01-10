@@ -1,0 +1,1 @@
+cd "C:\Users\pinto\OneDrive - Universidade de Lisboa\Documentos\Engenharia Mec\2ºQ\DeepLearning\Hw2\hw2_skeleton_code\hw2-q3" 

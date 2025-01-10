@@ -216,22 +216,40 @@ def greedy_next_token(logits):
 
 def nucleus_sampling(logits, p=0.8):
     """
-    Performs nucleus (top-p) sampling
-    logits: 1d tensor of unnormalized scores for each class. Shape: (vocab_size,)
-    p: Cumulative probability threshold to be used. (scalar)
+    Perform nucleus (top-p) sampling to select the next token.
+    
+    Args:
+        logits: 1D tensor of unnormalized scores (vocab_size,)
+        p: Cumulative probability threshold (scalar)
 
     Returns:
-        next_token: index of the next predicted token. Shape: (1,)
+        next_token: Index of the next predicted token (1,)
     """
-    # TODO: Top-p (nucleus) sampling  (https://arxiv.org/pdf/1904.09751 - Section 3.1)
-    # You are asked to implement the following steps:
-    # 1. Transform the given logits into probabilities.
-    # 2. Select the smallest set of tokens whose cumulative probability mass exceeds p.
-    # This is equivalent to selecting the tokens with highest probabilities, whose cumulative probability mass equals or exceeds p.
-    # 3. Rescale the distribution and sample from the resulting set of tokens.
-    # Implementation of the steps as described above:
+    # Step 1: Convert logits to probabilities
+    probabilities = torch.softmax(logits, dim=-1)
 
-    raise NotImplementedError("Add your implementation.")
+    # Step 2: Sort probabilities in descending order
+    sorted_probs, sorted_indices = torch.sort(probabilities, descending=True)
+
+    # Step 3: Compute cumulative probabilities
+    cumulative_probs = torch.cumsum(sorted_probs, dim=-1)
+
+    # Step 4: Identify top-p vocabulary (tokens with cumulative prob <= p)
+    mask = cumulative_probs <= p
+    mask[cumulative_probs.argmax()] = True  # Ensure at least one token is included
+
+    # Step 5: Extract top-p probabilities and renormalize
+    top_p_probs = sorted_probs[mask]
+    top_p_probs /= top_p_probs.sum()  # Renormalize probabilities to sum to 1
+
+    # Step 6: Sample a token from the top-p distribution
+    sampled_index = torch.multinomial(top_p_probs, num_samples=1)
+    next_token = sorted_indices[mask][sampled_index]
+
+    return next_token
+
+
+
 
 
 def main(args):
@@ -315,9 +333,10 @@ def main(args):
         plt.ylabel("Error Rate")
         plt.legend()
         plt.savefig(
-            "attn_%s_err_rate.pdf" % (str(args.use_attn),),
-            bbox_inches="tight",
+        "attn_%s_err_rate.pdf" % (str(args.use_attn),),
+        bbox_inches="tight",
         )
+
     else:
         print("Testing...")
 
